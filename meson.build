@@ -157,8 +157,8 @@ if not get_option('backend-' + backend_default)
 	error('Backend @0@ was chosen as native but is not being built.'.format(backend_default))
 endif
 
-dep_wayland_server = dependency('wayland-server', version: '>= 1.24.0')
-dep_wayland_client = dependency('wayland-client', version: '>= 1.24.0')
+dep_wayland_server = dependency('wayland-server', version: '>= 1.21.0')
+dep_wayland_client = dependency('wayland-client', version: '>= 1.21.0')
 
 wayland_server_version = dep_wayland_server.version()
 has_compositor_v7 = wayland_server_version.version_compare('>=1.25.0')
