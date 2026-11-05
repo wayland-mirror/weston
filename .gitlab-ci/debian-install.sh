@@ -42,6 +42,14 @@ if [ x"$USE_DEBIAN_BACKPORTS" = "xy" ] ; then
 	echo 'deb http://deb.debian.org/debian '${FDO_DISTRIBUTION_VERSION}'-backports main' >> /etc/apt/sources.list
 fi
 
+# These will be used as packages in debian LTS builds, but built from source
+# for more modern builds.
+if [ x"$USE_UPGRADED_DEPENDENCIES" != "xy" ] ; then
+	STOCK_DEPENDENCIES="
+		libwayland-dev
+	"
+fi
+
 apt-get update
 apt-get -y --no-install-recommends install \
 	autoconf \
@@ -137,6 +145,7 @@ apt-get -y --no-install-recommends install \
 	$MESA_RUNTIME_PKGS \
 	$PACKAGES_SPECIFIC \
 	$LINUX_DEV_PKGS \
+	$STOCK_DEPENDENCIES
 
 if [ "$FREERDP_VERSION" -ne 0 ] ; then
     apt-get -y --no-install-recommends install freerdp${FREERDP_VERSION}-dev

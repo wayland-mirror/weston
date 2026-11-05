@@ -115,16 +115,17 @@ if [[ -n "$KERNEL_DEFCONFIG" ]]; then
 fi
 fdo_log_section_end install_kernel
 
-# Build and install Wayland; keep this version in sync with our dependency
-# in meson.build.
-fdo_log_section_start_collapsed install_wayland "install_wayland"
-git clone --branch 1.25.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland
-cd wayland
-git show -s HEAD
-meson setup build --wrap-mode=nofallback -Ddocumentation=false
-ninja ${NINJAFLAGS} -C build install
-cd ..
-rm -rf wayland
+# These dependencies must be installed from package in the LTS build
+if [ x"$USE_UPGRADED_DEPENDENCIES" = "xy" ] ; then
+	fdo_log_section_start_collapsed install_wayland "install_wayland"
+	git clone --branch 1.25.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland
+	cd wayland
+	git show -s HEAD
+	meson setup build --wrap-mode=nofallback -Ddocumentation=false
+	ninja ${NINJAFLAGS} -C build install
+	cd ..
+	rm -rf wayland
+fi
 
 # Keep this version in sync with our dependency in meson.build. If you wish to
 # raise a MR against custom protocol, please change this reference to clone

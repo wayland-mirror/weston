@@ -43,7 +43,7 @@
 variables:
   FDO_UPSTREAM_REPO: wayland/weston
   FDO_REPO_SUFFIX: "$BUILD_OS-$FDO_DISTRIBUTION_VERSION/$BUILD_ARCH"
-  FDO_DISTRIBUTION_TAG: '2026-11-09-protocols'
+  FDO_DISTRIBUTION_TAG: '2026-11-16-packaged-libwayland'
 
 
 include:
@@ -107,6 +107,7 @@ stages:
     LLVM_VERSION: 19
     FREERDP_VERSION: 3
     USE_DEBIAN_BACKPORTS: y
+    USE_UPGRADED_DEPENDENCIES: y
     PACKAGES_SPECIFIC: vulkan-utility-libraries-dev libpolly-19-dev libclang-rt-19-dev python3-standard-imghdr
     # If you upgrade from trixie, see the use_tls=0 notes in tests/meson.build.
     FDO_DISTRIBUTION_VERSION: trixie
