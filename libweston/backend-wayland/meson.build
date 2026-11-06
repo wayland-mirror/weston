@@ -12,6 +12,11 @@ srcs_wlwl = [
 	xdg_shell_protocol_c,
 ]
 
+# We need this for dispatch_with_timeout
+if dep_wayland_client.version().version_compare('< 1.24.0')
+	error('wayland-backend requires wayland >= 1.24.0. Or, you can use \'-Dbackend-wayland=false\'.')
+endif
+
 deps_wlwl = [
 	dependency('wayland-client'),
 	dependency('wayland-cursor'),
