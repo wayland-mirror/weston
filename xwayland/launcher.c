@@ -64,8 +64,8 @@ weston_xserver_handle_event(int listen_fd, uint32_t mask, void *data)
 		return 1;
 	}
 	wxs->client_destroy_listener.notify = weston_xserver_client_destroyed;
-	wl_client_add_destroy_late_listener(wxs->client,
-					    &wxs->client_destroy_listener);
+	wl_client_add_destroy_listener(wxs->client,
+				       &wxs->client_destroy_listener);
 
 	wl_event_source_remove(wxs->abstract_source);
 	wl_event_source_remove(wxs->unix_source);
