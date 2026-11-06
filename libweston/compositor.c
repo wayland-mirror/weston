@@ -1788,27 +1788,31 @@ weston_surface_update_preferences(struct weston_surface *surface)
 {
 	struct weston_output *output = surface->output;
 	struct wl_resource *resource = surface->resource;
-	int version;
 
 	weston_surface_update_preferred_color_profile(surface);
 
 	if (!output || !resource)
 		return;
 
-	version = wl_resource_get_version(resource);
-	if (version >= WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION &&
+#ifdef WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION
+	if (wl_resource_get_version(resource) >=
+	    WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION &&
 	    surface->preferred_buffer_transform != output->transform) {
 		surface->preferred_buffer_transform = output->transform;
 		wl_surface_send_preferred_buffer_transform(surface->resource,
 							   surface->preferred_buffer_transform);
 	}
+#endif
 
-	if (version >= WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION &&
+#ifdef WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION
+	if (wl_resource_get_version(resource) >=
+	    WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION &&
 	    surface->preferred_buffer_scale != output->current_scale) {
 		surface->preferred_buffer_scale = output->current_scale;
 		wl_surface_send_preferred_buffer_scale(surface->resource,
 						       surface->preferred_buffer_scale);
 	}
+#endif
 }
 
 /** Recalculate which output(s) the surface has views displayed on

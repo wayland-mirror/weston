@@ -479,6 +479,7 @@ surface_leave(void *data,
 		wl_output_get_user_data(output));
 }
 
+#ifdef WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION
 static void
 surface_preferred_buffer_scale(void *data,
 			       struct wl_surface *wl_surface,
@@ -488,7 +489,9 @@ surface_preferred_buffer_scale(void *data,
 
 	surface->preferred_buffer_scale = scale;
 }
+#endif
 
+#ifdef WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION
 static void
 surface_preferred_buffer_transform(void *data,
 				   struct wl_surface *wl_surface,
@@ -498,12 +501,17 @@ surface_preferred_buffer_transform(void *data,
 
 	surface->preferred_buffer_transform = transform;
 }
+#endif
 
 static const struct wl_surface_listener surface_listener = {
 	surface_enter,
 	surface_leave,
+#ifdef WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION
 	surface_preferred_buffer_scale,
+#endif
+#ifdef WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION
 	surface_preferred_buffer_transform,
+#endif
 };
 
 bool
