@@ -137,7 +137,6 @@ tests = [
 	{	'name': 'subsurface-shot', },
 	{	'name': 'surface', },
 	{	'name': 'surface-global', },
-	{	'name': 'surface-release', },
 	{	'name': 'tearing-control', },
 	{	'name': 'timespec', },
 	{
@@ -169,6 +168,12 @@ tests = [
 		'dep_objs': dep_libxwayland_test,
 	},
 ]
+
+if has_compositor_v7
+	tests += {
+		'name': 'surface-release',
+	}
+endif
 
 if get_option('renderer-gl')
 	tests += {

@@ -159,6 +159,18 @@ simple_clients = [
 		'dep_objs': [ dep_wayland_client, dep_libshared ]
 	},
 	{
+		'name': 'touch',
+		'sources': [
+			'simple-touch.c',
+			xdg_shell_client_protocol_h,
+			xdg_shell_protocol_c,
+		],
+		'dep_objs': [ dep_wayland_client, dep_libshared ]
+	},
+]
+
+if has_compositor_v7
+	simple_clients += {
 		'name': 'timing',
 		'sources': [
 			'simple-timing.c',
@@ -178,17 +190,8 @@ simple_clients = [
 			weston_fast_forward_protocol_c,
 		],
 		'dep_objs': [ dep_wayland_client, dep_libshared ]
-	},
-	{
-		'name': 'touch',
-		'sources': [
-			'simple-touch.c',
-			xdg_shell_client_protocol_h,
-			xdg_shell_protocol_c,
-		],
-		'dep_objs': [ dep_wayland_client, dep_libshared ]
-	},
-]
+	}
+endif
 
 if dep_vulkan.found() and prog_glslang.found()
 	srcs_simple_vulkan_shaders = [

@@ -160,6 +160,9 @@ endif
 dep_wayland_server = dependency('wayland-server', version: '>= 1.24.0')
 dep_wayland_client = dependency('wayland-client', version: '>= 1.24.0')
 
+wayland_server_version = dep_wayland_server.version()
+has_compositor_v7 = wayland_server_version.version_compare('>=1.25.0')
+
 dep_pixman = dependency('pixman-1', version: '>= 0.27.4')
 config_h.set10('HAVE_PIXMAN_16_BPC', dep_pixman.version().version_compare('>= 0.46.0'))
 

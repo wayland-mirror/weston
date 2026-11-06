@@ -5567,6 +5567,7 @@ surface_commit(struct wl_client *client, struct wl_resource *resource)
 		return;
 	}
 
+#ifdef WL_SURFACE_GET_RELEASE_SINCE_VERSION
 	if (buffer_release &&
 	    !wl_list_empty(&buffer_release->get_release.callback_list) &&
 	    !surface->pending.buffer_ref.buffer) {
@@ -5576,6 +5577,7 @@ surface_commit(struct wl_client *client, struct wl_resource *resource)
 			wl_resource_get_id(resource));
 		return;
 	}
+#endif
 
 	if (!weston_surface_check_pending_color_representation_valid(surface))
 		return;
@@ -5644,6 +5646,7 @@ surface_offset(struct wl_client *client,
 	surface->pending.buf_offset = weston_coord_surface(sx, sy, surface);
 }
 
+#ifdef WL_SURFACE_GET_RELEASE_SINCE_VERSION
 static void
 destroy_release_callback(struct wl_resource *resource)
 {
@@ -5673,6 +5676,7 @@ surface_get_release(struct wl_client *client,
 	wl_list_insert(buffer_release->get_release.callback_list.prev,
 		       wl_resource_get_link(cb));
 }
+#endif
 
 static const struct wl_surface_interface surface_interface = {
 	surface_destroy,
@@ -5686,7 +5690,9 @@ static const struct wl_surface_interface surface_interface = {
 	surface_set_buffer_scale,
 	surface_damage_buffer,
 	surface_offset,
+#ifdef WL_SURFACE_GET_RELEASE_SINCE_VERSION
 	surface_get_release,
+#endif
 };
 
 static void
@@ -5787,17 +5793,21 @@ compositor_create_region(struct wl_client *client,
 				       region, destroy_region);
 }
 
+#ifdef WL_COMPOSITOR_RELEASE_SINCE_VERSION
 static void
 compositor_release(struct wl_client *client,
 		   struct wl_resource *resource)
 {
 	wl_resource_destroy(resource);
 }
+#endif
 
 static const struct wl_compositor_interface compositor_interface = {
 	compositor_create_surface,
 	compositor_create_region,
+#ifdef WL_COMPOSITOR_RELEASE_SINCE_VERSION
 	compositor_release,
+#endif
 };
 
 static void
@@ -10800,7 +10810,8 @@ weston_compositor_create(struct wl_display *display,
 
 	ec->wake_up_on_input = true;
 
-	if (!wl_global_create(ec->wl_display, &wl_compositor_interface, 7,
+	if (!wl_global_create(ec->wl_display, &wl_compositor_interface,
+			      MIN(7, wl_compositor_interface.version),
 			      ec, compositor_bind))
 		goto fail;
 
