@@ -10579,7 +10579,8 @@ weston_compositor_client_created(struct wl_listener *l, void *data)
 	wl_client_get_credentials(wlclient, &client->pid, NULL, NULL);
 
 	client->wl_client_destroy_listener.notify = weston_client_destroy_handler;
-	wl_client_add_destroy_late_listener(wlclient, &client->wl_client_destroy_listener);
+
+	wl_client_add_destroy_listener(wlclient, &client->wl_client_destroy_listener);
 
 	client->internal_id = ++compositor->client_counter;
 	str_printf(&client->internal_name, "%" PRIu64, client->internal_id);
@@ -10610,7 +10611,7 @@ weston_compositor_get_client(struct weston_compositor *compositor,
 	if (!wlclient)
 		return NULL;
 
-	l = wl_client_get_destroy_late_listener(wlclient, weston_client_destroy_handler);
+	l = wl_client_get_destroy_listener(wlclient, weston_client_destroy_handler);
 	weston_assert_ptr_not_null(compositor, l);
 
 	return container_of(l, struct weston_client, wl_client_destroy_listener);
