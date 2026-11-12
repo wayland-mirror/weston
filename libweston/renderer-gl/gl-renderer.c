@@ -374,168 +374,6 @@ gl_log_paint_node(struct gl_renderer *gr, const char *feat_str)
 	weston_log_scope_printf(gr->paint_node_scope, "%s", feat_str);
 }
 
-static const char *
-paint_node_mask_to_str(enum weston_paint_node_status pnode_status)
-{
-	switch (pnode_status) {
-	case WESTON_PAINT_NODE_OUTPUT_DIRTY:
-		return "output";
-	case WESTON_PAINT_NODE_BUFFER_DIRTY:
-		return "buffer";
-	case WESTON_PAINT_NODE_BUFFER_PARAMS_DIRTY:
-		return "buffer params";
-	case WESTON_PAINT_NODE_VIEW_DIRTY:
-		return "view";
-	case WESTON_PAINT_NODE_VISIBILITY_DIRTY:
-		return "visibility";
-	case WESTON_PAINT_NODE_PLANE_DIRTY:
-		return "plane";
-	case WESTON_PAINT_NODE_PROTECTION_DIRTY:
-		return "protection";
-	case WESTON_PAINT_NODE_ALL_DIRTY:
-		return "all";
-	default: /* we don't handle 0x0 bits in bits_to_stream + please
-		    compiler with default */
-		return "clean";
-	}
-	return "???";
-}
-
-static char *
-weston_paint_node_status_mask_to_str(struct weston_paint_node *pnode)
-{
-	return bits_to_str(pnode->shadow_status, paint_node_mask_to_str);
-}
-
-static void
-gl_log_paint_node_start(struct gl_renderer *gr, struct weston_paint_node *pnode)
-{
-	struct weston_surface *surface;
-	struct weston_buffer *buffer;
-	pid_t pid = 0;
-	char *pnode_status_str = NULL;
-	pixman_box32_t *visible_region;
-	pixman_box32_t *prev_visible_region;
-
-	if (!weston_log_scope_is_enabled(gr->paint_node_scope))
-		return;
-
-	surface = pnode->surface;
-
-	if (surface->resource) {
-		struct wl_resource *resource = surface->resource;
-		wl_client_get_credentials(wl_resource_get_client(resource),
-				&pid, NULL, NULL);
-	}
-
-	weston_log_scope_printf(gr->paint_node_scope, "\tPaint node %s (role %s, PID %d"
-				", %s):\n", pnode->internal_name, surface->role_name ?: "none",
-				pid, surface->label);
-
-	buffer = pnode->surface->buffer_ref.buffer;
-	if (!buffer) {
-		weston_log_scope_printf(gr->paint_node_scope, "\t\t[buffer not available]\n");
-		return;
-	}
-
-	if (buffer->pixel_format)
-		weston_log_scope_printf(gr->paint_node_scope, "\t\tbuffer format: 0x%lx %s\n",
-					(unsigned long) buffer->pixel_format->format,
-					buffer->pixel_format->drm_format_name);
-	else
-		weston_log_scope_printf(gr->paint_node_scope, "\t\t[unknown buffer format]\n");
-
-	weston_log_scope_printf(gr->paint_node_scope, "\t\tbuffer modifier: %s\n",
-				buffer->format_modifier_name);
-
-	if (pnode->shadow_status == WESTON_PAINT_NODE_CLEAN) {
-		weston_log_scope_printf(gr->paint_node_scope,
-					"\t\tpaint node status: clean\n");
-	} else {
-		pnode_status_str =
-			weston_paint_node_status_mask_to_str(pnode);
-		weston_log_scope_printf(gr->paint_node_scope,
-					"\t\tpaint node status: %s dirty\n",
-					pnode_status_str);
-		free(pnode_status_str);
-	}
-
-	visible_region =
-		pixman_region32_extents(&pnode->visible);
-	weston_log_scope_printf(gr->paint_node_scope,
-				"\t\tvisible region bounding box: x: %5d, y: %5d, "
-				"width: %d, height: %d\n",
-				visible_region->x1, visible_region->y1,
-				visible_region->x2 - visible_region->x1,
-				visible_region->y2 - visible_region->y1);
-
-	if (pnode->shadow_status & WESTON_PAINT_NODE_VIEW_DIRTY) {
-		prev_visible_region =
-			pixman_region32_extents(&pnode->visible_previous);
-		weston_log_scope_printf(gr->paint_node_scope,
-					"\t\tprev visible region bounding box: x: %5d, y: %5d, "
-					"width: %d, height: %d\n",
-					prev_visible_region->x1, prev_visible_region->y1,
-					prev_visible_region->x2 - prev_visible_region->x1,
-					prev_visible_region->y2 - prev_visible_region->y1);
-	}
-}
-
-static void
-gl_log_paint_node_bbox_and_region(struct gl_renderer *gr, struct weston_paint_node *pnode,
-				  const char *str, pixman_region32_t *damage)
-{
-	pixman_box32_t *box;
-	int32_t box_x, box_y;
-	uint32_t box_width, box_height;
-	int n_rects = 0;
-	const pixman_box32_t *rects;
-
-	if (!weston_log_scope_is_enabled(gr->paint_node_scope) &&
-	    !WESTON_TRACE_IS_TRACING())
-		return;
-
-	rects = pixman_region32_rectangles(damage, &n_rects);
-	box = pixman_region32_extents(damage);
-
-	box_x = box->x1;
-	box_y = box->y1;
-	box_width = box->x2 - box->x1;
-	box_height = box->y2 - box->y1;
-
-	WESTON_TRACE_BEGIN_ANNOTATION();
-
-	WESTON_TRACE_ANNOTATE(("paint node", pnode),
-			      ("type", str),
-			      ("x", box_x),
-			      ("y", box_y),
-			      ("box_width", box_width),
-			      ("box_height", box_height));
-
-	WESTON_TRACE_COMMIT_ANNOTATION("region");
-
-	if (!weston_log_scope_is_enabled(gr->paint_node_scope))
-		return;
-
-	weston_log_scope_printf(gr->paint_node_scope, "\t\t%s bounding box: ", str);
-	weston_log_scope_printf(gr->paint_node_scope, "x: %5d, y: %5d, width: "
-			       "%d, height: %d\n", box_x, box_y, box_width, box_height);
-
-	weston_log_scope_printf(gr->paint_node_scope,
-				"\t\t%s has %d rectangles\n", str, n_rects);
-
-	for (int i = 0; i < n_rects; i++) {
-		int x1 = rects[i].x1;
-		int y1 = rects[i].y1;
-		int x2 = rects[i].x2;
-		int y2 = rects[i].y2;
-
-		weston_log_scope_printf(gr->paint_node_scope, "\t\t\t%3d: "
-					"(%4d, %4d) - (%4d, %4d), %4d x %4d\n",
-					i, x1, y1, x2, y2, x2 - x1, y2 - y1);
-	}
-}
-
 static inline const char *
 dump_format(uint32_t format, char out[4])
 {
@@ -2785,7 +2623,7 @@ draw_paint_node(struct weston_paint_node *pnode,
 	WESTON_TRACE_ANNOTATE(("paint node", pnode),
 			      ("hole punching", pnode->need_hole));
 
-	gl_log_paint_node_start(gr, pnode);
+	weston_paint_node_log_start(pnode, gr->paint_node_scope);
 
 	if (!pixman_region32_not_empty(&repaint)) {
 		gl_log_paint_node(gr, "\t\tskipped repaint: repaint region empty\n");
@@ -2845,18 +2683,21 @@ draw_paint_node(struct weston_paint_node *pnode,
 	pixman_region32_subtract(&surface_blend, &surface_blend,
 				 &surface_opaque);
 
-	gl_log_paint_node_bbox_and_region(gr, pnode, "repaint region", &repaint);
+	weston_paint_node_log_region(pnode, gr->paint_node_scope,
+				     "repaint region", &repaint);
 	transform_damage(pnode, &repaint, &quads, &nquads);
 
 	if (pixman_region32_not_empty(&surface_opaque)) {
-		gl_log_paint_node_bbox_and_region(gr, pnode, "opaque region", &surface_opaque);
+		weston_paint_node_log_region(pnode, gr->paint_node_scope,
+					     "opaque region", &surface_opaque);
 		repaint_region(gr, pnode, quads, nquads, &surface_opaque,
 			       &sconf, true);
 		gs->used_in_output_repaint = true;
 	}
 
 	if (pixman_region32_not_empty(&surface_blend)) {
-		gl_log_paint_node_bbox_and_region(gr, pnode, "blended region", &surface_blend);
+		weston_paint_node_log_region(pnode, gr->paint_node_scope,
+					     "blended region", &surface_blend);
 		repaint_region(gr, pnode, quads, nquads, &surface_blend, &sconf,
 			       false);
 		gs->used_in_output_repaint = true;

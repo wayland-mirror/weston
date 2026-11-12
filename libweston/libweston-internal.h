@@ -618,6 +618,15 @@ const pixman_region32_t *
 weston_paint_node_get_opaque_region(const struct weston_paint_node *pnode);
 
 void
+weston_paint_node_log_start(struct weston_paint_node *pnode,
+			    struct weston_log_scope *scope);
+
+void
+weston_paint_node_log_region(struct weston_paint_node *pnode,
+			     struct weston_log_scope *scope,
+			     const char *str, pixman_region32_t *damage);
+
+void
 weston_view_buffer_to_output_matrix(const struct weston_view *view,
 				    const struct weston_output *output,
 				    struct weston_matrix *matrix);
