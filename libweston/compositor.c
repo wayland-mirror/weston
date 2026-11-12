@@ -1529,16 +1529,18 @@ paint_node_mask_to_str(enum weston_paint_node_status pnode_status)
 	switch (pnode_status) {
 	case WESTON_PAINT_NODE_OUTPUT_DIRTY:
 		return "output";
-	case WESTON_PAINT_NODE_BUFFER_DIRTY:
-		return "buffer";
-	case WESTON_PAINT_NODE_BUFFER_PARAMS_DIRTY:
-		return "buffer params";
 	case WESTON_PAINT_NODE_VIEW_DIRTY:
 		return "view";
 	case WESTON_PAINT_NODE_VISIBILITY_DIRTY:
 		return "visibility";
 	case WESTON_PAINT_NODE_PLANE_DIRTY:
 		return "plane";
+	case WESTON_PAINT_NODE_BUFFER_DIRTY:
+		return "buffer";
+	case WESTON_PAINT_NODE_BUFFER_PARAMS_DIRTY:
+		return "buffer params";
+	case WESTON_PAINT_NODE_RATE_DIRTY:
+		return "rate";
 	case WESTON_PAINT_NODE_PROTECTION_DIRTY:
 		return "protection";
 	case WESTON_PAINT_NODE_ALL_DIRTY:
@@ -1547,7 +1549,6 @@ paint_node_mask_to_str(enum weston_paint_node_status pnode_status)
 		    compiler with default */
 		return "clean";
 	}
-	return "???";
 }
 
 static char *
