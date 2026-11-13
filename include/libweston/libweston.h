@@ -1544,7 +1544,6 @@ struct weston_compositor {
 	struct wl_signal output_moved_signal;
 	struct wl_signal output_resized_signal; /* callback argument: resized output */
 	struct wl_signal touch_device_created_signal;   /* callback argument: created touch device  */
-	struct wl_signal weston_test_immediate_signal;  /* callback argument: compositor */
 
 	/* Signal for output changes triggered by configuration from frontend
 	 * or head state changes from backend.
