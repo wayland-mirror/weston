@@ -3096,6 +3096,8 @@ weston_buffer_destroy(struct weston_buffer *buffer)
 	assert(buffer->passive_count == 0);
 
 	wl_signal_emit_mutable(&buffer->destroy_signal, buffer);
+	if (buffer->type == WESTON_BUFFER_DMABUF)
+		linux_dmabuf_buffer_unref(buffer->dmabuf);
 	free(buffer->format_modifier_name);
 	free(buffer);
 }
@@ -3117,7 +3119,7 @@ weston_buffer_destroy_handler(struct wl_listener *listener, void *data)
 		buffer->shm_buffer = NULL;
 		break;
 	case WESTON_BUFFER_DMABUF:
-		buffer->dmabuf = NULL;
+		/* weston_buffer holds its own reference on the dmabuf. */
 		break;
 	case WESTON_BUFFER_SOLID:
 		break;
@@ -3172,7 +3174,7 @@ weston_buffer_from_resource(struct weston_compositor *ec,
 			goto fail;
 	} else if ((dmabuf = linux_dmabuf_buffer_get(ec, buffer->resource))) {
 		buffer->type = WESTON_BUFFER_DMABUF;
-		buffer->dmabuf = dmabuf;
+		buffer->dmabuf = linux_dmabuf_buffer_ref(dmabuf);
 		buffer->direct_display = dmabuf->direct_display;
 		buffer->restriction = dmabuf->restriction;
 		/* If we have no restricted context, all restricted buffers are

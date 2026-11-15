@@ -274,7 +274,110 @@ drm_color_representation_reuse_buffer(struct wet_testsuite_data *suite_data)
 	return RESULT_OK;
 }
 
+/*
+ * Test that a sub-surface whose dmabuf wl_buffer has already been destroyed
+ * by the client can still be repainted after its color representation
+ * changes. Moving the sub-surface forces it to be repainted, and the GL
+ * renderer to re-import the dmabuf with the new color representation.
+ */
+static enum test_result_code
+color_representation_destroyed_buffer(struct wet_testsuite_data *suite_data)
+{
+	const struct setup_args *args = &my_setup_args[get_test_fixture_index()];
+	struct xdg_client *xdg_client;
+	struct client *client;
+	struct xdg_surface_data *xdg_surface;
+	struct wl_surface *toplevel_surface;
+	struct wl_surface *surface;
+	struct wl_subsurface *subsurface;
+	struct wp_viewport *toplevel_viewport;
+	struct wl_buffer *toplevel_buffer;
+	struct client_buffer *buffer;
+	struct wp_color_representation_surface_v1 *color_representation_surface;
+	int done;
+
+	/* The bug is in the dmabuf import path, nothing to test with shm. */
+	if (args->buffer_type != CLIENT_BUFFER_TYPE_DMABUF)
+		return RESULT_OK;
+
+	if (!client_buffer_util_is_dmabuf_supported()) {
+		testlog("%s: Skipped: udmabuf not supported\n", get_test_name());
+		return RESULT_SKIP;
+	}
+
+	xdg_client = create_xdg_client();
+	client = xdg_client->client;
+	xdg_surface = create_xdg_surface(xdg_client);
+	toplevel_surface = xdg_surface->surface->wl_surface;
+
+	xdg_surface_make_toplevel(xdg_surface,
+		"weston.test.color-representation", "one");
+	xdg_toplevel_set_fullscreen(xdg_surface->xdg_toplevel, NULL);
+	xdg_surface_wait_configure(xdg_surface);
+
+	toplevel_viewport = wp_viewporter_get_viewport(client->viewporter,
+						       toplevel_surface);
+	wp_viewport_set_destination(toplevel_viewport,
+		xdg_surface->configure.width, xdg_surface->configure.height);
+	toplevel_buffer =
+		wp_single_pixel_buffer_manager_v1_create_u32_rgba_buffer(client->single_pixel_manager,
+									 0x0, 0x0, 0x0, 0xffffffff);
+	wl_buffer_add_listener(toplevel_buffer, &buffer_listener, NULL);
+	wl_surface_attach(toplevel_surface, toplevel_buffer, 0, 0);
+	wl_surface_damage_buffer(toplevel_surface, 0, 0, 1, 1);
+
+	surface = wl_compositor_create_surface(client->wl_compositor);
+	subsurface = wl_subcompositor_get_subsurface(client->wl_subcompositor,
+						     surface, toplevel_surface);
+	color_representation_surface =
+		wp_color_representation_manager_v1_get_surface(
+			client->color_representation, surface);
+	wp_color_representation_surface_v1_set_coefficients_and_range(
+		color_representation_surface,
+		WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT709,
+		WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_LIMITED);
+
+	buffer = create_and_fill_nv12_buffer(client, args->buffer_type, 64, 64);
+	wl_surface_attach(surface, buffer->wl_buffer, 0, 0);
+	wl_surface_damage(surface, 0, 0, INT32_MAX, INT32_MAX);
+	wl_surface_commit(surface);
+
+	xdg_surface_maybe_ack_configure(xdg_surface);
+	frame_callback_set(toplevel_surface, &done);
+	wl_surface_commit(toplevel_surface);
+	frame_callback_wait(client, &done);
+
+	client_buffer_util_destroy_buffer(buffer);
+
+	wp_color_representation_surface_v1_set_coefficients_and_range(
+		color_representation_surface,
+		WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT601,
+		WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_LIMITED);
+	wl_surface_commit(surface);
+	wl_subsurface_set_position(subsurface, 64, 0);
+
+	toplevel_buffer =
+		wp_single_pixel_buffer_manager_v1_create_u32_rgba_buffer(client->single_pixel_manager,
+									 0x0, 0x0, 0x0, 0xffffffff);
+	wl_buffer_add_listener(toplevel_buffer, &buffer_listener, NULL);
+	wl_surface_attach(toplevel_surface, toplevel_buffer, 0, 0);
+	wl_surface_damage_buffer(toplevel_surface, 0, 0, 1, 1);
+	frame_callback_set(toplevel_surface, &done);
+	wl_surface_commit(toplevel_surface);
+	frame_callback_wait(client, &done);
+
+	wp_color_representation_surface_v1_destroy(color_representation_surface);
+	wl_subsurface_destroy(subsurface);
+	wl_surface_destroy(surface);
+	wp_viewport_destroy(toplevel_viewport);
+	destroy_xdg_surface(xdg_surface);
+	xdg_client_destroy(xdg_client);
+
+	return RESULT_OK;
+}
+
 DECLARE_TEST_LIST(
 	TESTFN_ARG(color_representation_renderer, color_state_cases),
 	TESTFN(drm_color_representation_reuse_buffer),
+	TESTFN(color_representation_destroyed_buffer),
 );

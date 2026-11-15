@@ -41,11 +41,22 @@
 #include "shared/weston-assert.h"
 #include "shared/weston-drm-fourcc.h"
 
-static void
-linux_dmabuf_buffer_destroy(struct linux_dmabuf_buffer *buffer)
+WL_EXPORT struct linux_dmabuf_buffer *
+linux_dmabuf_buffer_ref(struct linux_dmabuf_buffer *buffer)
+{
+	assert(buffer->ref_count > 0);
+	buffer->ref_count++;
+	return buffer;
+}
+
+WL_EXPORT void
+linux_dmabuf_buffer_unref(struct linux_dmabuf_buffer *buffer)
 {
 	int i;
 
+	assert(buffer->ref_count > 0);
+	if (--buffer->ref_count)
+		return;
 	if (buffer->user_data_destroy_func)
 		buffer->user_data_destroy_func(buffer);
 
@@ -72,7 +83,7 @@ destroy_params(struct wl_resource *params_resource)
 	weston_assert_ptr_null(buffer->compositor,
 			       buffer->user_data_destroy_func);
 
-	linux_dmabuf_buffer_destroy(buffer);
+	linux_dmabuf_buffer_unref(buffer);
 }
 
 static void
@@ -164,7 +175,9 @@ destroy_linux_dmabuf_wl_buffer(struct wl_resource *resource)
 	weston_assert_ptr_eq(buffer->compositor, buffer->buffer_resource, resource);
 	weston_assert_ptr_null(buffer->compositor, buffer->params_resource);
 
-	linux_dmabuf_buffer_destroy(buffer);
+	buffer->buffer_resource = NULL;
+
+	linux_dmabuf_buffer_unref(buffer);
 }
 
 static void
@@ -329,7 +342,7 @@ err_failed:
 			"importing the supplied dmabufs failed");
 
 err_out:
-	linux_dmabuf_buffer_destroy(buffer);
+	linux_dmabuf_buffer_unref(buffer);
 }
 
 static void
@@ -387,6 +400,7 @@ linux_dmabuf_create_params(struct wl_client *client,
 	buffer = zalloc(sizeof *buffer);
 	if (!buffer)
 		goto err_out;
+	buffer->ref_count = 1;
 
 	for (i = 0; i < MAX_DMABUF_PLANES; i++)
 		buffer->attributes.fd[i] = -1;

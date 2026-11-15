@@ -75,7 +75,15 @@ struct linux_dmabuf_buffer {
 
 	/**< may be restricted and require special handling */
 	enum weston_buffer_restriction restriction;
+	/* Held by the params or wl_buffer resource and by weston_buffer. */
+	unsigned int ref_count;
 };
+
+struct linux_dmabuf_buffer *
+linux_dmabuf_buffer_ref(struct linux_dmabuf_buffer *buffer);
+
+void
+linux_dmabuf_buffer_unref(struct linux_dmabuf_buffer *buffer);
 
 enum weston_dmabuf_feedback_tranche_preference {
 	RENDERER_PREF = 0,
