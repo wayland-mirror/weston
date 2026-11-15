@@ -46,6 +46,9 @@ linux_dmabuf_buffer_destroy(struct linux_dmabuf_buffer *buffer)
 {
 	int i;
 
+	if (buffer->user_data_destroy_func)
+		buffer->user_data_destroy_func(buffer);
+
 	for (i = 0; i < buffer->attributes.n_planes; i++) {
 		close(buffer->attributes.fd[i]);
 		buffer->attributes.fd[i] = -1;
@@ -64,6 +67,10 @@ destroy_params(struct wl_resource *params_resource)
 
 	if (!buffer)
 		return;
+
+	/* Nothing has imported a dmabuf that never became a wl_buffer. */
+	weston_assert_ptr_null(buffer->compositor,
+			       buffer->user_data_destroy_func);
 
 	linux_dmabuf_buffer_destroy(buffer);
 }
@@ -156,9 +163,6 @@ destroy_linux_dmabuf_wl_buffer(struct wl_resource *resource)
 	buffer = wl_resource_get_user_data(resource);
 	weston_assert_ptr_eq(buffer->compositor, buffer->buffer_resource, resource);
 	weston_assert_ptr_null(buffer->compositor, buffer->params_resource);
-
-	if (buffer->user_data_destroy_func)
-		buffer->user_data_destroy_func(buffer);
 
 	linux_dmabuf_buffer_destroy(buffer);
 }
@@ -295,7 +299,7 @@ avoid_gpu_import:
 						     1, buffer_id);
 	if (!buffer->buffer_resource) {
 		wl_resource_post_no_memory(params_resource);
-		goto err_buffer;
+		goto err_failed;
 	}
 
 	wl_resource_set_implementation(buffer->buffer_resource,
@@ -309,10 +313,6 @@ avoid_gpu_import:
 						buffer->buffer_resource);
 
 	return;
-
-err_buffer:
-	if (buffer->user_data_destroy_func)
-		buffer->user_data_destroy_func(buffer);
 
 err_failed:
 	if (buffer_id == 0)
