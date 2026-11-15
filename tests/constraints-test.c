@@ -467,6 +467,56 @@ constraints_pointer_focus(struct wet_testsuite_data *suite_data)
 	return RESULT_OK;
 }
 
+static enum test_result_code
+constraints_locked_cursor_hint(struct wet_testsuite_data *suite_data)
+{
+	static struct constraints cs;
+	struct client *client;
+
+	client = create_client_and_test_surface(100, 100, 100, 100);
+	constraints_init(&cs, client);
+
+	/* activate surface */
+	move_pointer(client, 150, 150);
+	click_pointer(client);
+
+	/* A hint that was never committed must be ignored on unlock. */
+	lock_pointer(&cs, client, &locked_pointer_listener, NULL,
+		     ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT);
+	test_assert_true(cs.pointer_is_locked);
+	zwp_locked_pointer_v1_set_cursor_position_hint(cs.zwp_locked_pointer,
+						       wl_fixed_from_int(10),
+						       wl_fixed_from_int(20));
+	lock_destroy(&cs, client);
+
+	/* While locked, the reported position is the current one. */
+	lock_pointer(&cs, client, &locked_pointer_listener, NULL,
+		     ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT);
+	test_assert_true(cs.pointer_is_locked);
+	move_pointer(client, 0, 0);
+	test_assert_int_eq(client->test->pointer_x, 150);
+	test_assert_int_eq(client->test->pointer_y, 150);
+
+	/* A committed hint is used on unlock. */
+	zwp_locked_pointer_v1_set_cursor_position_hint(cs.zwp_locked_pointer,
+						       wl_fixed_from_int(10),
+						       wl_fixed_from_int(20));
+	wl_surface_commit(client->surface->wl_surface);
+	lock_destroy(&cs, client);
+
+	lock_pointer(&cs, client, &locked_pointer_listener, NULL,
+		     ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT);
+	test_assert_true(cs.pointer_is_locked);
+	move_pointer(client, 0, 0);
+	test_assert_int_eq(client->test->pointer_x, client->surface->x + 10);
+	test_assert_int_eq(client->test->pointer_y, client->surface->y + 20);
+
+	constraint_deinit(&cs);
+	client_destroy(client);
+
+	return RESULT_OK;
+}
+
 DECLARE_TEST_LIST(
 	TESTFN(constraints_events),
 	TESTFN(constraints_confined_boundaries_input_region),
@@ -474,4 +524,5 @@ DECLARE_TEST_LIST(
 	TESTFN(constraints_already_constrained),
 	TESTFN(constraints_shell_activate_input),
 	TESTFN(constraints_pointer_focus),
+	TESTFN(constraints_locked_cursor_hint),
 );

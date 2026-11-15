@@ -4766,6 +4766,9 @@ is_within_constraint_region(struct weston_pointer_constraint *constraint,
 	pixman_region32_t constraint_region;
 	bool result;
 
+	weston_assert_ptr_eq(surface->compositor, c.coordinate_space_id,
+			     surface);
+
 	pixman_region32_init(&constraint_region);
 	pixman_region32_intersect(&constraint_region,
 				  &surface->input,
@@ -5091,7 +5094,9 @@ locked_pointer_destroy(struct wl_client *client,
 	struct weston_pointer_constraint *constraint =
 		wl_resource_get_user_data(resource);
 
-	if (constraint && constraint->view && constraint->hint_is_pending &&
+	/* The hint is only set once it has been committed. */
+	if (constraint && constraint->view &&
+	    constraint->hint.coordinate_space_id &&
 	    is_within_constraint_region(constraint, constraint->hint)) {
 		struct weston_coord_global pos;
 
