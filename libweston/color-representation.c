@@ -520,11 +520,31 @@ weston_compositor_enable_color_representation_protocol(struct weston_compositor 
 }
 
 static const struct weston_color_matrix_coef_info color_matrix_coef_info_map[] = {
-	{ WESTON_COLOR_MATRIX_COEF_UNSET, "unset", WDRM_PLANE_COLOR_ENCODING__COUNT },
-	{ WESTON_COLOR_MATRIX_COEF_IDENTITY, "default", WDRM_PLANE_COLOR_ENCODING__COUNT },
-	{ WESTON_COLOR_MATRIX_COEF_BT601, "BT.601", WDRM_PLANE_COLOR_ENCODING_BT601 },
-	{ WESTON_COLOR_MATRIX_COEF_BT709, "BT.709", WDRM_PLANE_COLOR_ENCODING_BT709 },
-	{ WESTON_COLOR_MATRIX_COEF_BT2020, "BT.2020", WDRM_PLANE_COLOR_ENCODING_BT2020 },
+	{
+		.coefficients = WESTON_COLOR_MATRIX_COEF_UNSET,
+		.name = "unset",
+		.wdrm = WDRM_PLANE_COLOR_ENCODING__COUNT,
+	},
+	{
+		.coefficients = WESTON_COLOR_MATRIX_COEF_IDENTITY,
+		.name = "default",
+		.wdrm = WDRM_PLANE_COLOR_ENCODING__COUNT,
+	},
+	{
+		.coefficients = WESTON_COLOR_MATRIX_COEF_BT601,
+		.name = "BT.601",
+		.wdrm = WDRM_PLANE_COLOR_ENCODING_BT601,
+	},
+	{
+		.coefficients = WESTON_COLOR_MATRIX_COEF_BT709,
+		.name = "BT.709",
+		.wdrm = WDRM_PLANE_COLOR_ENCODING_BT709,
+	},
+	{
+		.coefficients = WESTON_COLOR_MATRIX_COEF_BT2020,
+		.name = "BT.2020",
+		.wdrm = WDRM_PLANE_COLOR_ENCODING_BT2020,
+	},
 };
 
 WL_EXPORT const struct weston_color_matrix_coef_info *
