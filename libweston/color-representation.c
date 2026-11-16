@@ -524,26 +524,31 @@ static const struct weston_color_matrix_coef_info color_matrix_coef_info_map[] =
 		.coefficients = WESTON_COLOR_MATRIX_COEF_UNSET,
 		.name = "unset",
 		.wdrm = WDRM_PLANE_COLOR_ENCODING__COUNT,
+		.protocol_code = 0, /* illegal */
 	},
 	{
 		.coefficients = WESTON_COLOR_MATRIX_COEF_IDENTITY,
 		.name = "default",
 		.wdrm = WDRM_PLANE_COLOR_ENCODING__COUNT,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_IDENTITY,
 	},
 	{
 		.coefficients = WESTON_COLOR_MATRIX_COEF_BT601,
 		.name = "BT.601",
 		.wdrm = WDRM_PLANE_COLOR_ENCODING_BT601,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT601,
 	},
 	{
 		.coefficients = WESTON_COLOR_MATRIX_COEF_BT709,
 		.name = "BT.709",
 		.wdrm = WDRM_PLANE_COLOR_ENCODING_BT709,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT709,
 	},
 	{
 		.coefficients = WESTON_COLOR_MATRIX_COEF_BT2020,
 		.name = "BT.2020",
 		.wdrm = WDRM_PLANE_COLOR_ENCODING_BT2020,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT2020,
 	},
 };
 
@@ -553,6 +558,20 @@ weston_color_matrix_coef_info_from(enum weston_color_matrix_coef coefficients)
 	for (unsigned i = 0; i < ARRAY_LENGTH(color_matrix_coef_info_map); i++)
 		if (color_matrix_coef_info_map[i].coefficients == coefficients)
 			return &color_matrix_coef_info_map[i];
+
+	return NULL;
+}
+
+WL_EXPORT const struct weston_color_matrix_coef_info *
+weston_color_matrix_coef_info_from_protocol(uint32_t protocol_code)
+{
+	for (unsigned i = 0; i < ARRAY_LENGTH(color_matrix_coef_info_map); i++) {
+		if (color_matrix_coef_info_map[i].protocol_code == 0)
+			continue;
+
+		if (color_matrix_coef_info_map[i].protocol_code == protocol_code)
+			return &color_matrix_coef_info_map[i];
+	}
 
 	return NULL;
 }

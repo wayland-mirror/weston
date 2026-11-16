@@ -72,7 +72,11 @@ struct weston_color_matrix_coef_info {
 	enum weston_color_matrix_coef coefficients;
 	const char *name;
 	enum wdrm_plane_color_encoding wdrm;
+	uint32_t protocol_code;
 };
 
 const struct weston_color_matrix_coef_info *
 weston_color_matrix_coef_info_from(enum weston_color_matrix_coef coefficients);
+
+const struct weston_color_matrix_coef_info *
+weston_color_matrix_coef_info_from_protocol(uint32_t protocol_code);
