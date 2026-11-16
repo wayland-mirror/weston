@@ -66,7 +66,7 @@ struct weston_color_quant_range_info {
 };
 
 const struct weston_color_quant_range_info *
-weston_color_quant_range_info_get(enum weston_color_quant_range range);
+weston_color_quant_range_info_from(enum weston_color_quant_range range);
 
 struct weston_color_matrix_coef_info {
 	enum weston_color_matrix_coef coefficients;
@@ -75,4 +75,4 @@ struct weston_color_matrix_coef_info {
 };
 
 const struct weston_color_matrix_coef_info *
-weston_color_matrix_coef_info_get(enum weston_color_matrix_coef coefficients);
+weston_color_matrix_coef_info_from(enum weston_color_matrix_coef coefficients);

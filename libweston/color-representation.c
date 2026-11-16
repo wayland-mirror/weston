@@ -528,7 +528,7 @@ static const struct weston_color_matrix_coef_info color_matrix_coef_info_map[] =
 };
 
 WL_EXPORT const struct weston_color_matrix_coef_info *
-weston_color_matrix_coef_info_get(enum weston_color_matrix_coef coefficients)
+weston_color_matrix_coef_info_from(enum weston_color_matrix_coef coefficients)
 {
 	for (unsigned i = 0; i < ARRAY_LENGTH(color_matrix_coef_info_map); i++)
 		if (color_matrix_coef_info_map[i].coefficients == coefficients)
@@ -544,7 +544,7 @@ static const struct weston_color_quant_range_info color_quant_range_info_map[] =
 };
 
 WL_EXPORT const struct weston_color_quant_range_info *
-weston_color_quant_range_info_get(enum weston_color_quant_range range)
+weston_color_quant_range_info_from(enum weston_color_quant_range range)
 {
 	for (unsigned i = 0; i < ARRAY_LENGTH(color_quant_range_info_map); i++)
 		if (color_quant_range_info_map[i].range == range)

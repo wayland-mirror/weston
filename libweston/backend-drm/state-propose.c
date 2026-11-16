@@ -238,12 +238,12 @@ drm_output_try_paint_node_on_plane(struct drm_plane_handle *handle,
 			weston_fill_color_representation(&surface->color_representation,
 							 fb->format);
 		matrix_coef_info =
-			weston_color_matrix_coef_info_get(color_rep.matrix_coefficients);
+			weston_color_matrix_coef_info_from(color_rep.matrix_coefficients);
 		assert(matrix_coef_info);
 		assert(matrix_coef_info->wdrm != WDRM_PLANE_COLOR_ENCODING__COUNT);
 
 		quant_range_info =
-			weston_color_quant_range_info_get(color_rep.quant_range);
+			weston_color_quant_range_info_from(color_rep.quant_range);
 		assert(quant_range_info);
 		assert(quant_range_info->wdrm != WDRM_PLANE_COLOR_RANGE__COUNT);
 
