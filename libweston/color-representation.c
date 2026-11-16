@@ -565,9 +565,21 @@ weston_color_matrix_coef_info_from_protocol(uint32_t protocol_code)
 }
 
 static const struct weston_color_quant_range_info color_quant_range_info_map[] = {
-	{ WESTON_COLOR_QUANT_RANGE_UNSET, "unset", WDRM_PLANE_COLOR_RANGE__COUNT },
-	{ WESTON_COLOR_QUANT_RANGE_FULL, "full", WDRM_PLANE_COLOR_RANGE_FULL },
-	{ WESTON_COLOR_QUANT_RANGE_LIMITED, "limited", WDRM_PLANE_COLOR_RANGE_LIMITED },
+	{
+		.range = WESTON_COLOR_QUANT_RANGE_UNSET,
+		.name = "unset",
+		.wdrm = WDRM_PLANE_COLOR_RANGE__COUNT,
+	},
+	{
+		.range = WESTON_COLOR_QUANT_RANGE_FULL,
+		.name = "full",
+		.wdrm = WDRM_PLANE_COLOR_RANGE_FULL,
+	},
+	{
+		.range = WESTON_COLOR_QUANT_RANGE_LIMITED,
+		.name = "limited",
+		.wdrm = WDRM_PLANE_COLOR_RANGE_LIMITED,
+	},
 };
 
 WL_EXPORT const struct weston_color_quant_range_info *
