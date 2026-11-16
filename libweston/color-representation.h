@@ -63,10 +63,14 @@ struct weston_color_quant_range_info {
 	enum weston_color_quant_range range;
 	const char *name;
 	enum wdrm_plane_color_range wdrm;
+	uint32_t protocol_code;
 };
 
 const struct weston_color_quant_range_info *
 weston_color_quant_range_info_from(enum weston_color_quant_range range);
+
+const struct weston_color_quant_range_info *
+weston_color_quant_range_info_from_protocol(uint32_t protocol_code);
 
 struct weston_color_matrix_coef_info {
 	enum weston_color_matrix_coef coefficients;

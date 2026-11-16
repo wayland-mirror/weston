@@ -569,16 +569,19 @@ static const struct weston_color_quant_range_info color_quant_range_info_map[] =
 		.range = WESTON_COLOR_QUANT_RANGE_UNSET,
 		.name = "unset",
 		.wdrm = WDRM_PLANE_COLOR_RANGE__COUNT,
+		.protocol_code = 0, /* illegal */
 	},
 	{
 		.range = WESTON_COLOR_QUANT_RANGE_FULL,
 		.name = "full",
 		.wdrm = WDRM_PLANE_COLOR_RANGE_FULL,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_FULL,
 	},
 	{
 		.range = WESTON_COLOR_QUANT_RANGE_LIMITED,
 		.name = "limited",
 		.wdrm = WDRM_PLANE_COLOR_RANGE_LIMITED,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_LIMITED,
 	},
 };
 
@@ -588,6 +591,20 @@ weston_color_quant_range_info_from(enum weston_color_quant_range range)
 	for (unsigned i = 0; i < ARRAY_LENGTH(color_quant_range_info_map); i++)
 		if (color_quant_range_info_map[i].range == range)
 			return &color_quant_range_info_map[i];
+
+	return NULL;
+}
+
+WL_EXPORT const struct weston_color_quant_range_info *
+weston_color_quant_range_info_from_protocol(uint32_t protocol_code)
+{
+	for (unsigned i = 0; i < ARRAY_LENGTH(color_quant_range_info_map); i++) {
+		if (color_quant_range_info_map[i].protocol_code == 0)
+			continue;
+
+		if (color_quant_range_info_map[i].protocol_code == protocol_code)
+			return &color_quant_range_info_map[i];
+	}
 
 	return NULL;
 }
