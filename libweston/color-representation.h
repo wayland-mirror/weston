@@ -98,3 +98,16 @@ weston_ycbcr_chroma_location_info_from(enum weston_ycbcr_chroma_location locatio
 
 const struct weston_ycbcr_chroma_location_info *
 weston_ycbcr_chroma_location_info_from_protocol(uint32_t protocol_code);
+
+struct weston_alpha_mode_info {
+	enum weston_alpha_mode mode;
+	const char *name;
+	enum wdrm_plane_blend wdrm;
+	uint32_t protocol_code;
+};
+
+const struct weston_alpha_mode_info *
+weston_alpha_mode_info_from(enum weston_alpha_mode mode);
+
+const struct weston_alpha_mode_info *
+weston_alpha_mode_info_from_protocol(uint32_t protocol_code);

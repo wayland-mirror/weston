@@ -663,3 +663,44 @@ weston_ycbcr_chroma_location_info_from_protocol(uint32_t protocol_code)
 
 	return NULL;
 }
+
+static const struct weston_alpha_mode_info alpha_mode_info_map[] = {
+	{
+		.mode = WESTON_ALPHA_MODE_PREMULTIPLIED_ELECTRICAL,
+		.name = "premultiplied in electrical",
+		.wdrm = WDRM_PLANE_BLEND_PREMULT,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_ALPHA_MODE_PREMULTIPLIED_ELECTRICAL,
+	},
+	{
+		.mode = WESTON_ALPHA_MODE_PREMULTIPLIED_OPTICAL,
+		.name = "premultiplied in optical",
+		.wdrm = WDRM_PLANE_BLEND_PREMULT,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_ALPHA_MODE_PREMULTIPLIED_OPTICAL,
+	},
+	{
+		.mode = WESTON_ALPHA_MODE_STRAIGHT,
+		.name = "straight",
+		.wdrm = WDRM_PLANE_BLEND_COVERAGE,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_ALPHA_MODE_STRAIGHT,
+	},
+};
+
+WL_EXPORT const struct weston_alpha_mode_info *
+weston_alpha_mode_info_from(enum weston_alpha_mode mode)
+{
+	for (unsigned i = 0; i < ARRAY_LENGTH(alpha_mode_info_map); i++)
+		if (alpha_mode_info_map[i].mode == mode)
+			return &alpha_mode_info_map[i];
+
+	return NULL;
+}
+
+WL_EXPORT const struct weston_alpha_mode_info *
+weston_alpha_mode_info_from_protocol(uint32_t protocol_code)
+{
+	for (unsigned i = 0; i < ARRAY_LENGTH(alpha_mode_info_map); i++)
+		if (alpha_mode_info_map[i].protocol_code == protocol_code)
+			return &alpha_mode_info_map[i];
+
+	return NULL;
+}
