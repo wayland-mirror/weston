@@ -293,6 +293,7 @@ cr_set_coefficients_and_range(struct wl_client *client,
 		wl_resource_get_user_data(resource);
 	struct weston_color_representation *color_representation;
 	const struct weston_color_matrix_coef_info *coef_info;
+	const struct weston_color_quant_range_info *range_info;
 	bool supported = false;
 
 	if (!surface) {
@@ -329,16 +330,9 @@ cr_set_coefficients_and_range(struct wl_client *client,
 	weston_assert_ptr_not_null(surface->compositor, coef_info);
 	color_representation->matrix_coefficients = coef_info->coefficients;
 
-	switch (range) {
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_FULL:
-		color_representation->quant_range = WESTON_COLOR_QUANT_RANGE_FULL;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_LIMITED:
-		color_representation->quant_range = WESTON_COLOR_QUANT_RANGE_LIMITED;
-		break;
-	default:
-		weston_assert_not_reached(surface->compositor, "unsupported range");
-	}
+	range_info = weston_color_quant_range_info_from_protocol(range);
+	weston_assert_ptr_not_null(surface->compositor, range_info);
+	color_representation->quant_range = range_info->range;
 }
 
 static void
