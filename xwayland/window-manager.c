@@ -48,6 +48,7 @@
 #include "shared/cairo-util.h"
 #include "shared/hash.h"
 #include "shared/helpers.h"
+#include "shared/string-helpers.h"
 #include "shared/xcb-xwayland.h"
 #include "xwayland-shell-v1-server-protocol.h"
 
@@ -292,6 +293,30 @@ wm_lookup_window(struct weston_wm *wm, xcb_window_t hash,
 	return false;
 }
 
+/** Resolve an error by disconnecting Xwayland.
+ *
+ * This is meant for cases where Xwayland triggered a condition where
+ * Weston cannot reasonably recover.
+ *
+ * The error is sent as an IMPLEMENTATION error on Xwayland's wl_display.
+ *
+ * \param wm X11 window manager.
+ * \param msg A custom error message attached to the protocol error.
+ */
+static void
+weston_wm_send_server_error(struct weston_wm *wm, const char *msg)
+{
+	struct wl_resource *display_resource;
+
+	if (!wm || !wm->server || !wm->server->client)
+		return;
+
+	display_resource = wl_client_get_object(wm->server->client, 1);
+
+	wl_resource_post_error(display_resource,
+			       WL_DISPLAY_ERROR_IMPLEMENTATION,
+			       "server error: %s", msg);
+}
 
 static xcb_cursor_t
 xcb_cursor_image_load_cursor(struct weston_wm *wm, const XcursorImage *img)
@@ -2029,9 +2054,22 @@ weston_wm_window_handle_surface_id(struct weston_wm_window *window,
 	uint32_t id = client_message->data.data32[0];
 	resource = wl_client_get_object(wm->server->client, id);
 	if (resource) {
+		struct weston_surface *surface;
+
+		surface = weston_surface_from_resource(resource);
+		if (!surface) {
+			char *msg;
+
+			str_printf(&msg, "X11 window %d reported WL_SURFACE_ID of %u"
+				   " which is not a wl_surface.\n", window->id, id);
+			weston_log("Xwayland ERROR: %s", msg);
+			weston_wm_send_server_error(wm, msg);
+			free(msg);
+			return;
+		}
+
 		window->surface_id = 0;
-		xserver_map_shell_surface(window,
-					  wl_resource_get_user_data(resource));
+		xserver_map_shell_surface(window, surface);
 	}
 	else {
 		window->surface_id = id;
