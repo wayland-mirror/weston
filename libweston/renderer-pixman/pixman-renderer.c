@@ -31,6 +31,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include "pixman-renderer.h"
@@ -52,6 +53,15 @@ struct pixman_output_state {
 	const struct pixel_format_info *hw_format;
 	struct weston_size fb_size;
 	struct wl_list renderbuffer_list;
+
+	struct {
+		uint64_t damaged;
+		uint64_t opaque;
+		uint64_t blended;
+		uint64_t source_clipped;
+		uint64_t processed;
+		uint64_t shadow_copy;
+	} pixels;
 };
 
 struct pixman_surface_state {
@@ -135,6 +145,22 @@ get_renderer(struct weston_compositor *ec)
 }
 
 #define D2F(v) pixman_double_to_fixed((double)v)
+
+static uint64_t
+region_area(pixman_region32_t *region)
+{
+	const pixman_box32_t *boxes;
+	uint64_t area = 0;
+	int nr_boxes;
+	int i;
+
+	boxes = pixman_region32_rectangles(region, &nr_boxes);
+	for (i = 0; i < nr_boxes; i++)
+		area += (uint64_t) (boxes[i].x2 - boxes[i].x1) *
+			(boxes[i].y2 - boxes[i].y1);
+
+	return area;
+}
 
 static void
 weston_matrix_to_pixman_transform(pixman_transform_t *pt,
@@ -330,9 +356,43 @@ repaint_region(struct weston_paint_node *pnode,
 
 	weston_paint_node_log_region(pnode, pr->paint_node_scope, region_name,
 				     repaint_output);
-	if (source_clip)
-		weston_paint_node_log_region(pnode, pr->paint_node_scope,
-					     "source clip", source_clip);
+
+	if (weston_log_scope_is_enabled(pr->paint_node_scope)) {
+		uint64_t repaint_area = region_area(repaint_output);
+		pixman_region32_t clip_output;
+		uint64_t painted;
+		int nr_boxes;
+
+		if (source_clip) {
+			weston_paint_node_log_region(
+				pnode, pr->paint_node_scope, "source clip",
+				source_clip);
+
+			pixman_region32_rectangles(source_clip, &nr_boxes);
+			pixman_region32_init(&clip_output);
+			weston_matrix_transform_region(
+				&clip_output, &pnode->buffer_to_output_matrix,
+				source_clip);
+			pixman_region32_intersect(
+				&clip_output, &clip_output, repaint_output);
+			painted = region_area(&clip_output);
+			pixman_region32_fini(&clip_output);
+
+			weston_log_scope_printf(
+				pr->paint_node_scope,
+				"\t\tsource clipped: %" PRIu64 " px painted, %" PRIu64 " px processed (%d pass%s x %" PRIu64 " px)\n",
+				painted, repaint_area * nr_boxes, nr_boxes,
+				nr_boxes == 1 ? "" : "es", repaint_area);
+			po->pixels.source_clipped += painted;
+			po->pixels.processed += repaint_area * nr_boxes;
+		} else if (pixman_op == PIXMAN_OP_SRC) {
+			po->pixels.opaque += repaint_area;
+			po->pixels.processed += repaint_area;
+		} else {
+			po->pixels.blended += repaint_area;
+			po->pixels.processed += repaint_area;
+		}
+	}
 
  	/* Clip rendering to the damaged output region */
 	pixman_image_set_clip_region32(target_image, repaint_output);
@@ -598,6 +658,9 @@ copy_to_hw_buffer(struct weston_output *output, pixman_region32_t *region)
 
 	weston_region_global_to_output(&output_region, output, &output_region);
 
+	if (weston_log_scope_is_enabled(get_renderer(output->compositor)->paint_node_scope))
+		po->pixels.shadow_copy = region_area(&output_region);
+
 	pixman_image_set_clip_region32 (po->hw_buffer, &output_region);
 	pixman_region32_fini(&output_region);
 
@@ -684,8 +747,11 @@ pixman_renderer_output_set_buffer(struct weston_output *output,
 
 static void
 log_repaint_begin(struct pixman_renderer *pr, struct weston_output *output,
-		  struct timespec *begin)
+		  pixman_region32_t *damage, struct timespec *begin)
 {
+	struct pixman_output_state *po = get_output_state(output);
+	pixman_region32_t damage_output;
+
 	if (!weston_log_scope_is_enabled(pr->paint_node_scope))
 		return;
 
@@ -693,13 +759,22 @@ log_repaint_begin(struct pixman_renderer *pr, struct weston_output *output,
 	weston_log_scope_printf(pr->paint_node_scope,
 				"Repainted views @ %" PRId64 ".%09ld:\n",
 				(int64_t) begin->tv_sec, begin->tv_nsec);
+
+	memset(&po->pixels, 0, sizeof po->pixels);
+
+	pixman_region32_init(&damage_output);
+	weston_region_global_to_output(&damage_output, output, damage);
+	po->pixels.damaged = region_area(&damage_output);
+	pixman_region32_fini(&damage_output);
 }
 
 static void
 log_repaint_end(struct pixman_renderer *pr, struct weston_output *output,
 		const struct timespec *begin)
 {
+	struct pixman_output_state *po = get_output_state(output);
 	struct timespec end;
+	uint64_t painted;
 
 	if (!weston_log_scope_is_enabled(pr->paint_node_scope))
 		return;
@@ -711,6 +786,27 @@ log_repaint_end(struct pixman_renderer *pr, struct weston_output *output,
 				(int64_t) begin->tv_sec, begin->tv_nsec,
 				(int64_t) end.tv_sec, end.tv_nsec,
 				timespec_sub_to_nsec(&end, begin) * 0.001f);
+
+	painted = po->pixels.opaque + po->pixels.blended +
+		  po->pixels.source_clipped;
+	weston_log_scope_printf(
+		pr->paint_node_scope,
+		"\tPixels:\n"
+		"\t\tdamaged: %" PRIu64 "\n"
+		"\t\tpainted: %" PRIu64 " (opaque: %" PRIu64 ", blended: %" PRIu64 ", source clipped: %" PRIu64 ")\n"
+		"\t\tprocessed: %" PRIu64 "\n"
+		"\t\tshadow copy: %" PRIu64 "\n",
+		po->pixels.damaged, painted, po->pixels.opaque,
+		po->pixels.blended, po->pixels.source_clipped,
+		po->pixels.processed, po->pixels.shadow_copy);
+	if (po->pixels.damaged)
+		weston_log_scope_printf(pr->paint_node_scope,
+					"\t\tpainted / damaged: %.2f\n",
+					(double)painted / po->pixels.damaged);
+	if (painted)
+		weston_log_scope_printf(pr->paint_node_scope,
+					"\t\tprocessed / painted: %.2f\n",
+					(double)po->pixels.processed / painted);
 }
 
 static void
@@ -742,14 +838,14 @@ pixman_renderer_repaint_output(struct weston_output *output,
  		return;
 
 	if (po->shadow_image) {
-		log_repaint_begin(pr, output, &begin);
+		log_repaint_begin(pr, output, output_damage, &begin);
 		repaint_surfaces(output, output_damage);
 		pixman_renderer_do_capture_tasks(output,
 						 WESTON_OUTPUT_CAPTURE_SOURCE_BLENDING,
 						 po->shadow_image, po->shadow_format);
 		copy_to_hw_buffer(output, &rb->damage);
 	} else {
-		log_repaint_begin(pr, output, &begin);
+		log_repaint_begin(pr, output, &rb->damage, &begin);
 		repaint_surfaces(output, &rb->damage);
 	}
 	log_repaint_end(pr, output, &begin);
