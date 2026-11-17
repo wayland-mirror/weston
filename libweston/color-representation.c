@@ -292,6 +292,7 @@ cr_set_coefficients_and_range(struct wl_client *client,
 	struct weston_surface *surface =
 		wl_resource_get_user_data(resource);
 	struct weston_color_representation *color_representation;
+	const struct weston_color_matrix_coef_info *coef_info;
 	bool supported = false;
 
 	if (!surface) {
@@ -324,22 +325,9 @@ cr_set_coefficients_and_range(struct wl_client *client,
 		return;
 	}
 
-	switch (coefficients) {
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_IDENTITY:
-		color_representation->matrix_coefficients = WESTON_COLOR_MATRIX_COEF_IDENTITY;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT709:
-		color_representation->matrix_coefficients = WESTON_COLOR_MATRIX_COEF_BT709;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT601:
-		color_representation->matrix_coefficients = WESTON_COLOR_MATRIX_COEF_BT601;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT2020:
-		color_representation->matrix_coefficients = WESTON_COLOR_MATRIX_COEF_BT2020;
-		break;
-	default:
-		weston_assert_not_reached(surface->compositor, "unsupported coefficients");
-	}
+	coef_info = weston_color_matrix_coef_info_from_protocol(coefficients);
+	weston_assert_ptr_not_null(surface->compositor, coef_info);
+	color_representation->matrix_coefficients = coef_info->coefficients;
 
 	switch (range) {
 	case WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_FULL:
