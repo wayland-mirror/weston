@@ -602,3 +602,79 @@ weston_color_quant_range_info_from_protocol(uint32_t protocol_code)
 
 	return NULL;
 }
+
+static const struct weston_ycbcr_chroma_location_info chroma_location_info_map[] = {
+	{
+		.location = WESTON_YCBCR_CHROMA_LOCATION_UNSET,
+		.name = "unset",
+		.dx = -10.0f,
+		.dy = -10.0f,
+		.protocol_code = 0, /* illegal */
+	},
+	{
+		.location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_0,
+		.name = "{x+0 y+0.5}",
+		.dx = 0.0f,
+		.dy = 0.5f,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_0,
+	},
+	{
+		.location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_1,
+		.name = "{x+0.5 y+0.5}",
+		.dx = 0.5f,
+		.dy = 0.5f,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_1,
+	},
+	{
+		.location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_2,
+		.name = "{x+0 y+0}",
+		.dx = 0.0f,
+		.dy = 0.0f,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_2,
+	},
+	{
+		.location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_3,
+		.name = "{x+0.5 y+0}",
+		.dx = 0.5f,
+		.dy = 0.0f,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_3,
+	},
+	{
+		.location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_4,
+		.name = "{x+0 y+1}",
+		.dx = 0.0f,
+		.dy = 1.0f,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_4,
+	},
+	{
+		.location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_5,
+		.name = "{x+0.5 y+1}",
+		.dx = 0.5f,
+		.dy = 1.0f,
+		.protocol_code = WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_5,
+	},
+};
+
+WL_EXPORT const struct weston_ycbcr_chroma_location_info *
+weston_ycbcr_chroma_location_info_from(enum weston_ycbcr_chroma_location location)
+{
+	for (unsigned i = 0; i < ARRAY_LENGTH(chroma_location_info_map); i++)
+		if (chroma_location_info_map[i].location == location)
+			return &chroma_location_info_map[i];
+
+	return NULL;
+}
+
+WL_EXPORT const struct weston_ycbcr_chroma_location_info *
+weston_ycbcr_chroma_location_info_from_protocol(uint32_t protocol_code)
+{
+	for (unsigned i = 0; i < ARRAY_LENGTH(chroma_location_info_map); i++) {
+		if (chroma_location_info_map[i].protocol_code == 0)
+			continue;
+
+		if (chroma_location_info_map[i].protocol_code == protocol_code)
+			return &chroma_location_info_map[i];
+	}
+
+	return NULL;
+}

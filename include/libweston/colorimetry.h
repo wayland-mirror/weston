@@ -262,12 +262,25 @@ enum weston_color_quant_range {
 };
 
 enum weston_ycbcr_chroma_location {
+	/** Unspecified or illegal value */
 	WESTON_YCBCR_CHROMA_LOCATION_UNSET = 0,
+
+	/** Horizontal offset of 0, vertical offset of 0.5 */
 	WESTON_YCBCR_CHROMA_LOCATION_TYPE_0,
+
+	/** Horizontal offset of 0.5, vertical offset of 0.5 */
 	WESTON_YCBCR_CHROMA_LOCATION_TYPE_1,
+
+	/** Horizontal offset of 0, vertical offset of 0 */
 	WESTON_YCBCR_CHROMA_LOCATION_TYPE_2,
+
+	/** Horizontal offset of 0.5, vertical offset of 0 */
 	WESTON_YCBCR_CHROMA_LOCATION_TYPE_3,
+
+	/** Horizontal offset of 0, vertical offset of 1 */
 	WESTON_YCBCR_CHROMA_LOCATION_TYPE_4,
+
+	/** Horizontal offset of 0.5, vertical offset of 1 */
 	WESTON_YCBCR_CHROMA_LOCATION_TYPE_5,
 };
 

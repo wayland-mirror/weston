@@ -84,3 +84,17 @@ weston_color_matrix_coef_info_from(enum weston_color_matrix_coef coefficients);
 
 const struct weston_color_matrix_coef_info *
 weston_color_matrix_coef_info_from_protocol(uint32_t protocol_code);
+
+struct weston_ycbcr_chroma_location_info {
+	enum weston_ycbcr_chroma_location location;
+	const char *name;
+	float dx;
+	float dy;
+	uint32_t protocol_code;
+};
+
+const struct weston_ycbcr_chroma_location_info *
+weston_ycbcr_chroma_location_info_from(enum weston_ycbcr_chroma_location location);
+
+const struct weston_ycbcr_chroma_location_info *
+weston_ycbcr_chroma_location_info_from_protocol(uint32_t protocol_code);
