@@ -28,6 +28,7 @@
 #include "config.h"
 
 #include <errno.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -37,9 +38,11 @@
 #include "pixel-formats.h"
 #include "output-capture.h"
 #include "shared/helpers.h"
+#include "shared/timespec-util.h"
 #include "shared/weston-drm-fourcc.h"
 #include "shared/xalloc.h"
 
+#include <libweston/weston-log.h>
 #include <linux/input.h>
 
 struct pixman_output_state {
@@ -81,6 +84,7 @@ struct pixman_renderer {
 	int repaint_debug;
 	pixman_image_t *debug_color;
 	struct weston_binding *debug_binding;
+	struct weston_log_scope *paint_node_scope;
 
 	/* Lookup table for greyscale images */
 	pixman_indexed_t g8_table;
@@ -299,12 +303,14 @@ composite_clipped(struct weston_output *output,
  * \param source_clip The region of the source image to use, in source image
  *                    coordinates. If NULL, use the whole source image.
  * \param pixman_op Compositing operator, either SRC or OVER.
+ * \param region_name Name of the region.
  */
 static void
 repaint_region(struct weston_paint_node *pnode,
 	       pixman_region32_t *repaint_output,
 	       pixman_region32_t *source_clip,
-	       pixman_op_t pixman_op)
+	       pixman_op_t pixman_op,
+	       const char *region_name)
 {
 	struct weston_output *output = pnode->output;
 	struct pixman_renderer *pr =
@@ -321,6 +327,12 @@ repaint_region(struct weston_paint_node *pnode,
 		target_image = po->shadow_image;
 	else
 		target_image = po->hw_buffer;
+
+	weston_paint_node_log_region(pnode, pr->paint_node_scope, region_name,
+				     repaint_output);
+	if (source_clip)
+		weston_paint_node_log_region(pnode, pr->paint_node_scope,
+					     "source clip", source_clip);
 
  	/* Clip rendering to the damaged output region */
 	pixman_image_set_clip_region32(target_image, repaint_output);
@@ -405,7 +417,7 @@ draw_node_translated(struct weston_paint_node *pnode,
 						       &repaint_output);
 
 			repaint_region(pnode, &repaint_output, NULL,
-				       PIXMAN_OP_SRC);
+				       PIXMAN_OP_SRC, "opaque region");
 		}
 	}
 
@@ -417,7 +429,8 @@ draw_node_translated(struct weston_paint_node *pnode,
 					       output,
 					       &repaint_output);
 
-		repaint_region(pnode, &repaint_output, NULL, PIXMAN_OP_OVER);
+		repaint_region(pnode, &repaint_output, NULL, PIXMAN_OP_OVER,
+			       "blended region");
 	}
 
 	pixman_region32_fini(&surface_blend);
@@ -454,7 +467,8 @@ draw_node_source_clipped(struct weston_paint_node *pnode,
 	weston_region_global_to_output(&repaint_output, output,
 				       &repaint_output);
 
-	repaint_region(pnode, &repaint_output, &buffer_region, PIXMAN_OP_OVER);
+	repaint_region(pnode, &repaint_output, &buffer_region, PIXMAN_OP_OVER,
+		       "source clipped region");
 
 	pixman_region32_fini(&repaint_output);
 	pixman_region32_fini(&buffer_region);
@@ -462,21 +476,52 @@ draw_node_source_clipped(struct weston_paint_node *pnode,
 }
 
 static void
+log_paint_node_params(struct pixman_renderer *pr,
+		      struct weston_paint_node *pnode)
+{
+	struct weston_buffer *buffer = pnode->surface->buffer_ref.buffer;
+
+	if (!weston_log_scope_is_enabled(pr->paint_node_scope))
+		return;
+
+	if (buffer && buffer->type == WESTON_BUFFER_SOLID)
+		weston_log_scope_printf(pr->paint_node_scope,
+					"\t\tcolor: r: %.2f, g: %.2f, b: %.2f, a: %.2f\n",
+					buffer->solid.r, buffer->solid.g,
+					buffer->solid.b, buffer->solid.a);
+
+	weston_log_scope_printf(pr->paint_node_scope,
+				"\t\talpha: %.2f\n"
+				"\t\tfilter: %s\n",
+				pnode->alpha,
+				pnode->needs_filtering ? "bilinear" : "nearest");
+}
+
+static void
 draw_paint_node(struct weston_paint_node *pnode,
 		pixman_region32_t *damage /* in global coordinates */)
 {
+	struct pixman_renderer *pr = get_renderer(pnode->surface->compositor);
 	struct pixman_surface_state *ps = get_surface_state(pnode->surface);
 	/* repaint bounding region in global coordinates: */
 	pixman_region32_t repaint;
 
-	if (!pnode->surf_xform_valid)
+	weston_paint_node_log_start(pnode, pr->paint_node_scope);
+
+	if (!pnode->surf_xform_valid) {
+		weston_log_scope_printf(pr->paint_node_scope,
+					"\t\tskipped repaint: invalid surface xform\n");
 		return;
+	}
 
 	assert(pnode->surf_xform.transform == NULL);
 
 	/* No buffer attached */
-	if (!ps->image)
+	if (!ps->image) {
+		weston_log_scope_printf(pr->paint_node_scope,
+					"\t\tskipped repaint: no image\n");
 		return;
+	}
 
 	/* if we still have a reference, but the underlying buffer is no longer
 	 * available signal that we should unref image_t as well. This happens
@@ -486,6 +531,8 @@ draw_paint_node(struct weston_paint_node *pnode,
 	 * refactored to provide some analogue with the GL-renderer (as in, to
 	 * still maintain the buffer and let the compositor dispose of it). */
 	if (ps->buffer_ref.buffer && !ps->buffer_ref.buffer->shm_buffer) {
+		weston_log_scope_printf(pr->paint_node_scope,
+					"\t\tskipped repaint: buffer gone\n");
 		pixman_image_unref(ps->image);
 		ps->image = NULL;
 		return;
@@ -495,8 +542,15 @@ draw_paint_node(struct weston_paint_node *pnode,
 	pixman_region32_intersect(&repaint,
 				  &pnode->visible, damage);
 
-	if (!pixman_region32_not_empty(&repaint))
+	if (!pixman_region32_not_empty(&repaint)) {
+		weston_log_scope_printf(pr->paint_node_scope,
+					"\t\tskipped repaint: empty region\n");
 		goto out;
+	}
+
+	log_paint_node_params(pr, pnode);
+	weston_paint_node_log_region(pnode, pr->paint_node_scope,
+				     "repaint region", &repaint);
 
 	if (view_transformation_is_translation(pnode->view)) {
 		/* The simple case: The surface regions opaque, non-opaque,
@@ -629,12 +683,45 @@ pixman_renderer_output_set_buffer(struct weston_output *output,
 				  pixman_image_t *buffer);
 
 static void
+log_repaint_begin(struct pixman_renderer *pr, struct weston_output *output,
+		  struct timespec *begin)
+{
+	if (!weston_log_scope_is_enabled(pr->paint_node_scope))
+		return;
+
+	weston_compositor_read_presentation_clock(output->compositor, begin);
+	weston_log_scope_printf(pr->paint_node_scope,
+				"Repainted views @ %" PRId64 ".%09ld:\n",
+				(int64_t) begin->tv_sec, begin->tv_nsec);
+}
+
+static void
+log_repaint_end(struct pixman_renderer *pr, struct weston_output *output,
+		const struct timespec *begin)
+{
+	struct timespec end;
+
+	if (!weston_log_scope_is_enabled(pr->paint_node_scope))
+		return;
+
+	weston_compositor_read_presentation_clock(output->compositor, &end);
+	weston_log_scope_printf(pr->paint_node_scope,
+				"\tCPU activity:\n"
+				"\t\tbegin: %" PRId64 ".%09ld - end: %" PRId64 ".%09ld - active: %.2f us\n",
+				(int64_t) begin->tv_sec, begin->tv_nsec,
+				(int64_t) end.tv_sec, end.tv_nsec,
+				timespec_sub_to_nsec(&end, begin) * 0.001f);
+}
+
+static void
 pixman_renderer_repaint_output(struct weston_output *output,
 			       pixman_region32_t *output_damage,
 			       weston_renderbuffer_t renderbuffer)
 {
+	struct pixman_renderer *pr = get_renderer(output->compositor);
 	struct pixman_output_state *po = get_output_state(output);
 	struct pixman_renderbuffer *rb;
+	struct timespec begin;
 
 	assert(po);
 	assert(((struct pixman_renderbuffer *) renderbuffer)->output == output);
@@ -655,14 +742,17 @@ pixman_renderer_repaint_output(struct weston_output *output,
  		return;
 
 	if (po->shadow_image) {
+		log_repaint_begin(pr, output, &begin);
 		repaint_surfaces(output, output_damage);
 		pixman_renderer_do_capture_tasks(output,
 						 WESTON_OUTPUT_CAPTURE_SOURCE_BLENDING,
 						 po->shadow_image, po->shadow_format);
 		copy_to_hw_buffer(output, &rb->damage);
 	} else {
+		log_repaint_begin(pr, output, &begin);
 		repaint_surfaces(output, &rb->damage);
 	}
+	log_repaint_end(pr, output, &begin);
 	pixman_renderer_do_capture_tasks(output,
 					 WESTON_OUTPUT_CAPTURE_SOURCE_FRAMEBUFFER,
 					 po->hw_buffer, po->hw_format);
@@ -875,6 +965,7 @@ pixman_renderer_destroy(struct weston_compositor *ec)
 
 	wl_signal_emit(&pr->destroy_signal, pr);
 	weston_binding_destroy(pr->debug_binding);
+	weston_log_scope_destroy(pr->paint_node_scope);
 	free(pr);
 
 	ec->renderer = NULL;
@@ -893,6 +984,9 @@ pixman_renderer_surface_copy_content(struct weston_surface *surface,
 
 	if (!ps->image)
 		return -1;
+
+	weston_log_scope_printf(get_renderer(surface->compositor)->paint_node_scope,
+				"\t\tcopying surface\n");
 
 	out_buf = pixman_image_create_bits(format, width, height,
 					   target, width * bytespp);
@@ -1142,6 +1236,12 @@ pixman_renderer_init(struct weston_compositor *ec)
 	renderer->debug_binding =
 		weston_compositor_add_debug_binding(ec, KEY_R,
 						    debug_binding, ec);
+
+	renderer->paint_node_scope =
+		weston_compositor_add_log_scope(
+			ec, "pixman-renderer-paint-nodes",
+			"Print pixman-renderer debug information about paint nodes\n",
+			NULL, NULL, renderer);
 
 	info_argb8888 = pixel_format_get_info_shm(WL_SHM_FORMAT_ARGB8888);
 	info_xrgb8888 = pixel_format_get_info_shm(WL_SHM_FORMAT_XRGB8888);
