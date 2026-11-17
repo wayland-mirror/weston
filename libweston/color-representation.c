@@ -343,6 +343,7 @@ cr_set_chroma_location(struct wl_client *client,
 	struct weston_surface *surface =
 		wl_resource_get_user_data(resource);
 	struct weston_color_representation *color_representation;
+	const struct weston_ycbcr_chroma_location_info *loc_info;
 
 	if (!surface) {
 		wl_resource_post_error(resource,
@@ -358,26 +359,8 @@ cr_set_chroma_location(struct wl_client *client,
 
 	color_representation = &surface->pending.color_representation;
 
-	switch (chroma_location) {
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_0:
-		color_representation->chroma_location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_0;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_1:
-		color_representation->chroma_location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_1;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_2:
-		color_representation->chroma_location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_2;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_3:
-		color_representation->chroma_location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_3;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_4:
-		color_representation->chroma_location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_4;
-		break;
-	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_5:
-		color_representation->chroma_location = WESTON_YCBCR_CHROMA_LOCATION_TYPE_5;
-		break;
-	default:
+	loc_info = weston_ycbcr_chroma_location_info_from_protocol(chroma_location);
+	if (!loc_info) {
 		wl_resource_post_error(resource,
 			WP_COLOR_REPRESENTATION_SURFACE_V1_ERROR_CHROMA_LOCATION,
 			"wp_color_representation_surface_v1@%"PRIu32" "
@@ -386,6 +369,8 @@ cr_set_chroma_location(struct wl_client *client,
 			chroma_location);
 		return;
 	}
+
+	color_representation->chroma_location = loc_info->location;
 }
 
 static const struct wp_color_representation_surface_v1_interface cr_implementation = {
