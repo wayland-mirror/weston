@@ -10479,6 +10479,9 @@ debug_scene_view_print(FILE *fp, struct weston_view *view)
 		view->surface->role_name ?: "none",
 		surf_id, pid, view->surface->label);
 
+	if (view->parent_view)
+		fprintf(fp, "\t[parent view %s]\n", view->parent_view->internal_name);
+
 	if (!weston_view_is_mapped(view))
 		fputs("\t[view is not mapped!]\n", fp);
 	if (!weston_surface_is_mapped(view->surface))
