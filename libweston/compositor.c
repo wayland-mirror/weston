@@ -10593,6 +10593,8 @@ weston_compositor_print_scene_graph(struct weston_compositor *ec, FILE *fp)
 
 	wl_list_for_each(output, &ec->output_list, link) {
 		struct weston_head *head;
+		struct weston_paint_node *pnode;
+		unsigned zpos = 0;
 		int head_idx = 0;
 		int x, y;
 
@@ -10633,6 +10635,12 @@ weston_compositor_print_scene_graph(struct weston_compositor *ec, FILE *fp)
 			fprintf(fp, "\tHead %d (%s): %sconnected\n",
 				head_idx++, head->name,
 				(head->connected) ? "" : "not ");
+		}
+
+		fputs("\tStacking order (top to bottom):\n", fp);
+		wl_list_for_each(pnode, &output->paint_node_z_order_list, z_order_link) {
+			fprintf(fp, "\t\t[%u] Paint node %s\n",
+				zpos++, pnode->internal_name);
 		}
 	}
 
