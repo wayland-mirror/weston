@@ -10537,6 +10537,9 @@ debug_scene_view_print(FILE *fp, struct weston_view *view)
 
 }
 
+/**
+ * This prints detailed information about the view and its children.
+ */
 static void
 debug_scene_view_print_tree(struct weston_view *view, FILE *fp)
 {
@@ -10560,6 +10563,37 @@ debug_scene_view_print_tree(struct weston_view *view, FILE *fp)
 				continue;
 
 			debug_scene_view_print_tree(ev, fp);
+		}
+	}
+}
+
+/**
+ * This prints the parent-child relationships between views in a visual format.
+ */
+static void
+debug_scene_view_print_tree_hierarchy(struct weston_view *view, FILE *fp,
+				      unsigned depth)
+{
+	struct weston_subsurface *sub;
+	struct weston_view *ev;
+	unsigned i;
+
+	fputs("\t\t", fp);
+	for (i = 0; i < depth; i++)
+		fputs("\t", fp);
+
+	fprintf(fp, "View %s\n", view->internal_name);
+
+	if (wl_list_empty(&view->surface->subsurface_list))
+		return;
+
+	wl_list_for_each(sub, &view->surface->subsurface_list, parent_link) {
+		wl_list_for_each(ev, &sub->surface->views, surface_link) {
+			/* only print the child views of the current view */
+			if (ev->parent_view != view)
+				continue;
+
+			debug_scene_view_print_tree_hierarchy(ev, fp, depth + 1);
 		}
 	}
 }
@@ -10656,6 +10690,13 @@ weston_compositor_print_scene_graph(struct weston_compositor *ec, FILE *fp)
 			fprintf(fp, "\t[mask: (%d, %d) -> (%d,%d)]\n\n",
 				layer->mask.x1, layer->mask.y1,
 				layer->mask.x2, layer->mask.y2);
+		}
+
+		if (!wl_list_empty(&layer->view_list.link)) {
+			fputs("\tView tree:\n", fp);
+			wl_list_for_each(view, &layer->view_list.link, layer_link.link)
+				debug_scene_view_print_tree_hierarchy(view, fp, 0);
+			fputs("\n", fp);
 		}
 
 		wl_list_for_each(view, &layer->view_list.link, layer_link.link)
